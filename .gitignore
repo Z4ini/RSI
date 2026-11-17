@@ -1,0 +1,15 @@
+# Local database binaries
+*.db
+*.sqlite
+
+# Screenshots
+Screenshot*.*
+ERD.png
+
+# Temporary Office files
+~$*
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+.vscode/

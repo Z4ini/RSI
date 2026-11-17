@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SILOG-JKT Database Viewer (Tugas 9 DB Design & SQL)</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+    .tab-active {
+      border-bottom: 2px solid #38bdf8;
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background-color: #334155;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+  <div class="max-w-7xl mx-auto space-y-6">
+    
+    <!-- Header -->
+    <header class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 shadow-xl backdrop-blur">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">Tugas 9 - DB Design & SQL</span>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">DBMS: MySQL / SQLite Verified</span>
+          </div>
+          <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-white">SILOG-JKT Database Viewer</h1>
+          <p class="text-slate-400 text-sm mt-1">Sistem Informasi Bantuan dan Distribusi Logistik pada Provinsi DKI Jakarta | Tim F (CDK3FAB3)</p>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <div class="bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-2.5">
+            <span class="text-slate-400 block">Total Tabel</span>
+            <span class="text-lg font-bold text-sky-400">10 Tabel</span>
+          </div>
+          <div class="bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-2.5">
+            <span class="text-slate-400 block">Total Data Dummy</span>
+            <span class="text-lg font-bold text-emerald-400">120 Baris</span>
+          </div>
+          <div class="bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-2.5">
+            <span class="text-slate-400 block">Uji Query</span>
+            <span class="text-lg font-bold text-purple-400">16 Query Sesuai</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex border-b border-slate-700 mt-6 gap-6 text-sm">
+        <button id="btnTabTables" onclick="switchTab('tables')" class="pb-3 px-1 tab-active transition-colors">Data Tabel (10)</button>
+        <button id="btnTabQueries" onclick="switchTab('queries')" class="pb-3 px-1 text-slate-400 hover:text-slate-200 transition-colors">Hasil Query (16)</button>
+        <button id="btnTabSchema" onclick="switchTab('schema')" class="pb-3 px-1 text-slate-400 hover:text-slate-200 transition-colors">Struktur & Relasi Skema</button>
+      </nav>
+    </header>
+
+    <!-- SECTION 1: TABEL DATA -->
+    <section id="sectionTables" class="space-y-4">
+      <div class="flex flex-col sm:flex-row gap-3 sm:items-center justify-between bg-slate-800/60 border border-slate-700/60 p-4 rounded-xl">
+        <div class="flex items-center gap-3">
+          <label class="text-sm text-slate-400 font-medium">Pilih Tabel:</label>
+          <select id="tableSelect" onchange="renderCurrentTable()" class="bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-sky-500">
+          </select>
+          <span id="rowCountBadge" class="text-xs bg-slate-700/50 text-slate-300 px-2.5 py-1 rounded-md border border-slate-600">0 baris</span>
+        </div>
+        <div class="relative w-full sm:w-64">
+          <input type="text" id="searchInput" oninput="filterTable()" placeholder="Cari dalam tabel..." class="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-sm focus:outline-none focus:border-sky-500">
+        </div>
+      </div>
+
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl overflow-hidden shadow-lg">
+        <div class="overflow-x-auto custom-scroll" style="max-height: 600px;">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead id="tableHead" class="bg-slate-900/90 text-slate-300 sticky top-0 uppercase tracking-wider text-xs border-b border-slate-700"></thead>
+            <tbody id="tableBody" class="divide-y divide-slate-700/60 text-slate-300"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: HASIL QUERY -->
+    <section id="sectionQueries" class="hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <!-- Sidebar Query List -->
+        <div class="md:col-span-1 bg-slate-800/60 border border-slate-700/60 rounded-xl p-3 max-h-[700px] overflow-y-auto custom-scroll space-y-1" id="queryNavList">
+        </div>
+
+        <!-- Query Details & Output Table -->
+        <div class="md:col-span-3 space-y-4">
+          <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-lg space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+              <div>
+                <span id="activeQueryId" class="text-xs font-semibold px-2 py-0.5 bg-sky-500/20 text-sky-400 rounded-md border border-sky-500/30">Query 4.1</span>
+                <h3 id="activeQueryTitle" class="text-lg font-bold text-white mt-1">Bencana yang berstatus Aktif</h3>
+              </div>
+              <span id="queryRowCountBadge" class="text-xs bg-slate-700 text-slate-300 px-2.5 py-1 rounded">2 baris ditemukan</span>
+            </div>
+
+            <!-- SQL Code Block -->
+            <div class="bg-slate-950 border border-slate-800 rounded-lg p-3 font-mono text-xs text-sky-300 overflow-x-auto custom-scroll">
+              <pre id="activeQuerySql" class="whitespace-pre"></pre>
+            </div>
+
+            <!-- Result Table -->
+            <div class="border border-slate-700 rounded-lg overflow-hidden">
+              <div class="overflow-x-auto custom-scroll" style="max-height: 420px;">
+                <table class="w-full text-left text-sm border-collapse">
+                  <thead id="queryTableHead" class="bg-slate-900/90 text-slate-300 uppercase tracking-wider text-xs border-b border-slate-700 sticky top-0"></thead>
+                  <tbody id="queryTableBody" class="divide-y divide-slate-700/60 text-slate-300"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: SKEMA & RELASI -->
+    <section id="sectionSchema" class="hidden space-y-6">
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-lg space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-white">Relasi Antartabel SILOG-JKT</h2>
+          <p class="text-slate-400 text-sm mt-1">Pemetaan relasi dari class diagram ke tabel fisik basis data relasional:</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-slate-900/60 border border-slate-700 rounded-lg p-4 space-y-2">
+            <h4 class="font-semibold text-sky-400 text-sm">Relasi Induk - Anak</h4>
+            <ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+              <li><strong class="text-white">bencana &rarr; posko (1:N):</strong> Satu bencana dilayani oleh banyak posko.</li>
+              <li><strong class="text-white">bencana &rarr; distribusi (1:N):</strong> Satu bencana memiliki banyak pengiriman logistik.</li>
+              <li><strong class="text-white">posko &rarr; pengguna (1:N):</strong> Satu posko memiliki banyak akun petugas posko.</li>
+              <li><strong class="text-white">posko &rarr; distribusi (1:N):</strong> Satu posko menerima banyak paket distribusi.</li>
+              <li><strong class="text-white">posko &rarr; kebutuhan_logistik (1:N):</strong> Satu posko mencatat kebutuhan tiap barang.</li>
+              <li><strong class="text-white">posko &rarr; stok_posko (1:N):</strong> Satu posko memiliki stok tiap barang.</li>
+            </ul>
+          </div>
+
+          <div class="bg-slate-900/60 border border-slate-700 rounded-lg p-4 space-y-2">
+            <h4 class="font-semibold text-sky-400 text-sm">Relasi Logistik & Pengguna</h4>
+            <ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+              <li><strong class="text-white">jenis_logistik &rarr; stok_gudang (1:1):</strong> Tiap jenis logistik tepat memiliki 1 kuantitas stok di gudang utama.</li>
+              <li><strong class="text-white">jenis_logistik &rarr; bantuan_masuk (1:N):</strong> Satu jenis barang dapat disumbangkan berkali-kali.</li>
+              <li><strong class="text-white">jenis_logistik &rarr; distribusi (1:N):</strong> Satu jenis barang dapat dikirim ke berbagai posko.</li>
+              <li><strong class="text-white">pengguna &rarr; bantuan, distribusi, log_audit (1:N):</strong> Petugas mencatat banyak transaksi bantuan dan perpindahan barang.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/40 border border-slate-700/80 rounded-lg p-4">
+          <h4 class="font-semibold text-emerald-400 text-sm mb-2">Perubahan Desain dari Spesifikasi Sebelumnya</h4>
+          <ol class="text-xs text-slate-300 space-y-1 list-decimal list-inside">
+            <li>Semua atribut dilengkapi tipe data SQL dan ukurannya (VARCHAR, INT UNSIGNED, DATE, DATETIME, ENUM).</li>
+            <li>Kelas <code>PetugasBPBD</code> dan <code>PetugasPosko</code> digabung ke tabel <code>pengguna</code> dengan kolom <code>peran</code> dan CHECK constraint.</li>
+            <li>Ditambahkan relasi langsung <code>Posko - Bencana</code> (kolom <code>id_bencana</code> pada tabel posko) untuk mendukung fitur lokasi dan rekomendasi prioritas.</li>
+            <li>Kolom selisih penerimaan tidak disimpan di kolom fisik, melainkan dihitung on-the-fly (<code>jumlah - jumlah_diterima</code>).</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    const tablesData = {"bencana": {"columns": ["id_bencana", "jenis", "tanggal_kejadian", "wilayah", "status", "keterangan"], "rows": [["BNC01", "Kebakaran Permukiman", "2026-08-04", "Jakarta Barat", "Selesai", "Kebakaran di permukiman padat penduduk"], ["BNC02", "Angin Kencang", "2026-08-23", "Jakarta Selatan", "Selesai", "Rumah warga rusak akibat angin kencang"], ["BNC03", "Banjir Rob", "2026-09-12", "Jakarta Utara", "Aktif", "Air laut pasang menggenangi permukiman pesisir"], ["BNC04", "Kebakaran Permukiman", "2026-09-30", "Jakarta Timur", "Selesai", "Kebakaran di permukiman padat penduduk"], ["BNC05", "Banjir Luapan Kali", "2026-10-18", "Jakarta Timur", "Aktif", "Luapan sungai merendam permukiman bantaran"]]}, "posko": {"columns": ["id_posko", "nama", "alamat", "wilayah", "kontak", "status", "id_bencana"], "rows": [["PSK01", "Posko Cengkareng", "Jl. Kapuk Raya No. 12, Cengkareng", "Jakarta Barat", "081200000001", "Nonaktif", "BNC01"], ["PSK02", "Posko Kalideres", "Jl. Daan Mogot Km 14, Kalideres", "Jakarta Barat", "081200000002", "Nonaktif", "BNC01"], ["PSK03", "Posko Pasar Minggu", "Jl. Raya Pasar Minggu No. 40", "Jakarta Selatan", "081200000003", "Nonaktif", "BNC02"], ["PSK04", "Posko Penjaringan", "Jl. Pluit Raya No. 5, Penjaringan", "Jakarta Utara", "081200000004", "Aktif", "BNC03"], ["PSK05", "Posko Cakung", "Jl. Raya Bekasi Km 22, Cakung", "Jakarta Timur", "081200000005", "Nonaktif", "BNC04"], ["PSK06", "Posko Kampung Melayu", "Jl. Jatinegara Barat No. 8", "Jakarta Timur", "081200000006", "Aktif", "BNC05"], ["PSK07", "Posko Jatinegara", "Jl. Jatinegara Timur No. 21", "Jakarta Timur", "081200000007", "Aktif", "BNC05"]]}, "pengguna": {"columns": ["id_pengguna", "nama_pengguna", "kata_sandi", "peran", "id_posko"], "rows": [["USR01", "bpbd_andi", "9c1624d0b2ed2b5b71fdb369c5dd418edca9dc2123df6150dfab79cb063ffa24", "BPBD", null], ["USR02", "bpbd_sinta", "e4d18ccc1811fd16e2aed08929ca980923d404bed6ee8ed2a1dcbbeca9a71b65", "BPBD", null], ["USR03", "posko_cgkr", "ffeaa000d13766a7175b1c074922179029df6dbbc8e1d0b6336a7e72d4bb7c4c", "POSKO", "PSK01"], ["USR04", "posko_pjrg", "416bb5231eb6b669641651d270ae996cf875e4f19d96e14607267abbb1965f3b", "POSKO", "PSK04"], ["USR05", "posko_kpmly", "208d2c03818acd2bacd74740b045d1a7a38631c4c6776768cdd421101a8a3815", "POSKO", "PSK06"], ["USR06", "posko_jtng", "ab5563916068ee555ffc3c7e072ab9aeeae1743fe3d81437909e9929fce31511", "POSKO", "PSK07"]]}, "jenis_logistik": {"columns": ["id_jenis", "nama", "satuan"], "rows": [["JNS01", "Beras", "kg"], ["JNS02", "Air Mineral", "dus"], ["JNS03", "Mi Instan", "dus"], ["JNS04", "Selimut", "lembar"], ["JNS05", "Paket Kebersihan", "paket"], ["JNS06", "Terpal", "lembar"]]}, "bantuan_masuk": {"columns": ["id_bantuan", "sumber", "tanggal_masuk", "jumlah", "id_jenis", "id_pengguna"], "rows": [["BM001", "PT Sumber Pangan Nusantara", "2026-08-01", 1500, "JNS01", "USR01"], ["BM002", "Yayasan Peduli Jakarta", "2026-08-01", 600, "JNS02", "USR01"], ["BM003", "PMI DKI Jakarta", "2026-08-02", 400, "JNS03", "USR02"], ["BM004", "Kementerian Sosial", "2026-08-02", 500, "JNS04", "USR02"], ["BM005", "Donatur Perorangan", "2026-08-03", 250, "JNS05", "USR01"], ["BM006", "Dinas Sosial DKI", "2026-08-03", 150, "JNS06", "USR02"], ["BM007", "Koperasi Warga Sejahtera", "2026-08-18", 800, "JNS01", "USR01"], ["BM008", "PT Aqua Sejuk Abadi", "2026-08-18", 500, "JNS02", "USR02"], ["BM009", "Komunitas Berbagi Jakarta", "2026-08-20", 300, "JNS03", "USR01"], ["BM010", "Donatur Perorangan", "2026-08-22", 400, "JNS04", "USR02"], ["BM011", "Yayasan Peduli Jakarta", "2026-09-05", 250, "JNS05", "USR01"], ["BM012", "PT Sumber Pangan Nusantara", "2026-09-08", 1000, "JNS01", "USR01"], ["BM013", "PMI DKI Jakarta", "2026-09-09", 400, "JNS02", "USR02"], ["BM014", "Kementerian Sosial", "2026-09-10", 400, "JNS04", "USR01"], ["BM015", "Dinas Sosial DKI", "2026-09-10", 130, "JNS06", "USR02"], ["BM016", "Komunitas Berbagi Jakarta", "2026-09-18", 350, "JNS03", "USR02"], ["BM017", "Donatur Perorangan", "2026-09-24", 200, "JNS05", "USR01"], ["BM018", "Koperasi Warga Sejahtera", "2026-09-25", 600, "JNS01", "USR02"], ["BM019", "PT Aqua Sejuk Abadi", "2026-09-29", 300, "JNS02", "USR01"], ["BM020", "PT Sumber Pangan Nusantara", "2026-10-10", 300, "JNS01", "USR01"], ["BM021", "PMI DKI Jakarta", "2026-10-12", 250, "JNS03", "USR02"], ["BM022", "Kementerian Sosial", "2026-10-14", 600, "JNS04", "USR01"], ["BM023", "Dinas Sosial DKI", "2026-10-15", 120, "JNS06", "USR02"], ["BM024", "Yayasan Peduli Jakarta", "2026-10-17", 100, "JNS05", "USR01"]]}, "stok_gudang": {"columns": ["id_stok", "id_jenis", "jumlah"], "rows": [["STG01", "JNS01", 650], ["STG02", "JNS02", 360], ["STG03", "JNS03", 300], ["STG04", "JNS04", 700], ["STG05", "JNS05", 250], ["STG06", "JNS06", 140]]}, "distribusi": {"columns": ["id_distribusi", "id_bencana", "id_posko", "id_jenis", "id_pengguna", "jumlah", "tanggal_kirim", "status", "jumlah_diterima", "tanggal_terima", "catatan"], "rows": [["DST001", "BNC01", "PSK01", "JNS01", "USR01", 500, "2026-08-05", "Diterima", 500, "2026-08-06", null], ["DST002", "BNC01", "PSK01", "JNS02", "USR01", 200, "2026-08-05", "Diterima", 200, "2026-08-06", null], ["DST003", "BNC01", "PSK01", "JNS03", "USR01", 150, "2026-08-06", "Diterima", 150, "2026-08-07", null], ["DST004", "BNC01", "PSK02", "JNS01", "USR01", 400, "2026-08-06", "Diterima", 395, "2026-08-07", "Kantong sobek, 5 kg tumpah"], ["DST005", "BNC01", "PSK02", "JNS04", "USR02", 300, "2026-08-07", "Diterima", 300, "2026-08-08", null], ["DST006", "BNC01", "PSK01", "JNS05", "USR02", 100, "2026-08-09", "Diterima", 100, "2026-08-10", null], ["DST007", "BNC01", "PSK02", "JNS06", "USR02", 80, "2026-08-10", "Diterima", 80, "2026-08-11", null], ["DST008", "BNC02", "PSK03", "JNS01", "USR01", 350, "2026-08-24", "Diterima", 350, "2026-08-25", null], ["DST009", "BNC02", "PSK03", "JNS02", "USR01", 150, "2026-08-24", "Diterima", 150, "2026-08-25", null], ["DST010", "BNC02", "PSK03", "JNS03", "USR02", 120, "2026-08-25", "Diterima", 118, "2026-08-26", "2 dus rusak"], ["DST011", "BNC02", "PSK03", "JNS04", "USR02", 200, "2026-08-26", "Diterima", 200, "2026-08-27", null], ["DST012", "BNC02", "PSK03", "JNS05", "USR01", 80, "2026-08-28", "Diterima", 80, "2026-08-29", null], ["DST013", "BNC03", "PSK04", "JNS01", "USR01", 600, "2026-09-13", "Diterima", 600, "2026-09-14", null], ["DST014", "BNC03", "PSK04", "JNS02", "USR01", 300, "2026-09-13", "Diterima", 300, "2026-09-14", null], ["DST015", "BNC03", "PSK04", "JNS03", "USR02", 250, "2026-09-14", "Diterima", 250, "2026-09-15", null], ["DST016", "BNC03", "PSK04", "JNS04", "USR02", 250, "2026-09-15", "Diterima", 250, "2026-09-16", null], ["DST017", "BNC03", "PSK04", "JNS06", "USR01", 120, "2026-09-16", "Diterima", 118, "2026-09-17", "2 lembar sobek"], ["DST018", "BNC03", "PSK04", "JNS05", "USR01", 150, "2026-09-20", "Diterima", 150, "2026-09-21", null], ["DST019", "BNC03", "PSK04", "JNS01", "USR02", 450, "2026-09-27", "Diterima", 450, "2026-09-28", null], ["DST020", "BNC03", "PSK04", "JNS02", "USR02", 200, "2026-10-04", "Diterima", 200, "2026-10-05", null], ["DST021", "BNC04", "PSK05", "JNS01", "USR01", 300, "2026-10-01", "Diterima", 300, "2026-10-02", null], ["DST022", "BNC04", "PSK05", "JNS02", "USR01", 120, "2026-10-01", "Diterima", 120, "2026-10-02", null], ["DST023", "BNC04", "PSK05", "JNS03", "USR02", 100, "2026-10-02", "Diterima", 100, "2026-10-03", null], ["DST024", "BNC04", "PSK05", "JNS04", "USR02", 150, "2026-10-03", "Diterima", 150, "2026-10-04", null], ["DST025", "BNC04", "PSK05", "JNS06", "USR01", 60, "2026-10-05", "Diterima", 60, "2026-10-06", null], ["DST026", "BNC05", "PSK06", "JNS01", "USR01", 500, "2026-10-19", "Diterima", 500, "2026-10-20", null], ["DST027", "BNC05", "PSK06", "JNS02", "USR01", 250, "2026-10-19", "Diterima", 250, "2026-10-20", null], ["DST028", "BNC05", "PSK07", "JNS01", "USR02", 450, "2026-10-20", "Diterima", 445, "2026-10-21", "5 kg tumpah saat pengangkutan"], ["DST029", "BNC05", "PSK07", "JNS03", "USR02", 200, "2026-10-21", "Diterima", 200, "2026-10-22", null], ["DST030", "BNC05", "PSK06", "JNS04", "USR01", 300, "2026-10-22", "Diterima", 300, "2026-10-23", null], ["DST031", "BNC05", "PSK07", "JNS05", "USR02", 120, "2026-10-24", "Diterima", 120, "2026-10-25", null], ["DST032", "BNC05", "PSK06", "JNS03", "USR01", 180, "2026-10-26", "Diterima", 180, "2026-10-27", null], ["DST033", "BNC05", "PSK07", "JNS02", "USR02", 220, "2026-10-28", "Dikirim", null, null, null], ["DST034", "BNC05", "PSK06", "JNS05", "USR01", 100, "2026-10-29", "Dikirim", null, null, null], ["DST035", "BNC05", "PSK07", "JNS04", "USR02", 250, "2026-10-30", "Direncanakan", null, null, null], ["DST036", "BNC05", "PSK06", "JNS06", "USR01", 90, "2026-10-31", "Direncanakan", null, null, null]]}, "kebutuhan_logistik": {"columns": ["id_kebutuhan", "id_posko", "id_jenis", "jumlah_dibutuhkan", "tanggal"], "rows": [["KBT01", "PSK04", "JNS01", 800, "2026-10-28"], ["KBT02", "PSK04", "JNS02", 400, "2026-10-28"], ["KBT03", "PSK04", "JNS04", 300, "2026-10-28"], ["KBT04", "PSK04", "JNS06", 200, "2026-10-28"], ["KBT05", "PSK06", "JNS01", 700, "2026-10-29"], ["KBT06", "PSK06", "JNS02", 400, "2026-10-29"], ["KBT07", "PSK06", "JNS03", 300, "2026-10-29"], ["KBT08", "PSK06", "JNS04", 450, "2026-10-29"], ["KBT09", "PSK06", "JNS05", 250, "2026-10-29"], ["KBT10", "PSK07", "JNS01", 650, "2026-10-29"], ["KBT11", "PSK07", "JNS02", 500, "2026-10-29"], ["KBT12", "PSK07", "JNS03", 300, "2026-10-29"], ["KBT13", "PSK07", "JNS04", 400, "2026-10-29"], ["KBT14", "PSK07", "JNS05", 200, "2026-10-29"], ["KBT15", "PSK05", "JNS06", 100, "2026-10-04"]]}, "stok_posko": {"columns": ["id_stok", "id_posko", "id_jenis", "jumlah", "tanggal_pembaruan"], "rows": [["STP01", "PSK04", "JNS01", 520, "2026-10-31 09:00:00"], ["STP02", "PSK04", "JNS02", 150, "2026-10-31 09:00:00"], ["STP03", "PSK04", "JNS04", 120, "2026-10-31 09:00:00"], ["STP04", "PSK04", "JNS06", 40, "2026-10-31 09:00:00"], ["STP05", "PSK06", "JNS01", 380, "2026-10-31 10:15:00"], ["STP06", "PSK06", "JNS02", 180, "2026-10-31 10:15:00"], ["STP07", "PSK06", "JNS03", 150, "2026-10-31 10:15:00"], ["STP08", "PSK06", "JNS04", 160, "2026-10-31 10:15:00"], ["STP09", "PSK06", "JNS05", 60, "2026-10-31 10:15:00"], ["STP10", "PSK07", "JNS01", 300, "2026-10-31 11:30:00"], ["STP11", "PSK07", "JNS02", 90, "2026-10-31 11:30:00"], ["STP12", "PSK07", "JNS03", 100, "2026-10-31 11:30:00"], ["STP13", "PSK07", "JNS04", 80, "2026-10-31 11:30:00"], ["STP14", "PSK07", "JNS05", 70, "2026-10-31 11:30:00"], ["STP15", "PSK05", "JNS06", 70, "2026-10-06 14:00:00"]]}, "log_audit": {"columns": ["id_log", "id_pengguna", "waktu", "data_terkait", "nilai_sebelum", "nilai_sesudah"], "rows": [[1, "USR01", "2026-10-19 08:15:00", "distribusi DST026", "status=Direncanakan", "status=Dikirim"], [2, "USR05", "2026-10-20 13:40:00", "distribusi DST026", "status=Dikirim", "status=Diterima"], [3, "USR02", "2026-10-20 09:05:00", "distribusi DST028", "status=Direncanakan", "status=Dikirim"], [4, "USR06", "2026-10-21 15:20:00", "distribusi DST028", "status=Dikirim; jumlah_diterima=NULL", "status=Diterima; jumlah_diterima=445"], [5, "USR01", "2026-10-17 10:00:00", "bantuan_masuk BM024", "-", "jumlah=100"], [6, "USR05", "2026-10-31 10:15:00", "stok_posko STP05", "jumlah=330", "jumlah=380"]]}};
+    const queriesData = [{"id": "4.1", "title": "Bencana yang berstatus Aktif", "sql": "SELECT id_bencana, jenis, tanggal_kejadian, wilayah\nFROM bencana\nWHERE status = 'Aktif';", "columns": ["id_bencana", "jenis", "tanggal_kejadian", "wilayah"], "rows": [["BNC03", "Banjir Rob", "2026-09-12", "Jakarta Utara"], ["BNC05", "Banjir Luapan Kali", "2026-10-18", "Jakarta Timur"]]}, {"id": "4.2", "title": "Posko aktif beserta bencana yang dilayani", "sql": "SELECT p.nama AS posko, p.wilayah, b.jenis AS bencana\nFROM posko p\nJOIN bencana b ON b.id_bencana = p.id_bencana\nWHERE p.status = 'Aktif';", "columns": ["posko", "wilayah", "bencana"], "rows": [["Posko Penjaringan", "Jakarta Utara", "Banjir Rob"], ["Posko Kampung Melayu", "Jakarta Timur", "Banjir Luapan Kali"], ["Posko Jatinegara", "Jakarta Timur", "Banjir Luapan Kali"]]}, {"id": "4.3", "title": "Bantuan masuk pada bulan September 2026", "sql": "SELECT m.id_bantuan, m.sumber, m.tanggal_masuk, j.nama AS logistik, m.jumlah, j.satuan\nFROM bantuan_masuk m\nJOIN jenis_logistik j ON j.id_jenis = m.id_jenis\nWHERE m.tanggal_masuk BETWEEN '2026-09-01' AND '2026-09-30'\nORDER BY m.tanggal_masuk;", "columns": ["id_bantuan", "sumber", "tanggal_masuk", "logistik", "jumlah", "satuan"], "rows": [["BM011", "Yayasan Peduli Jakarta", "2026-09-05", "Paket Kebersihan", 250, "paket"], ["BM012", "PT Sumber Pangan Nusantara", "2026-09-08", "Beras", 1000, "kg"], ["BM013", "PMI DKI Jakarta", "2026-09-09", "Air Mineral", 400, "dus"], ["BM014", "Kementerian Sosial", "2026-09-10", "Selimut", 400, "lembar"], ["BM015", "Dinas Sosial DKI", "2026-09-10", "Terpal", 130, "lembar"], ["BM016", "Komunitas Berbagi Jakarta", "2026-09-18", "Mi Instan", 350, "dus"], ["BM017", "Donatur Perorangan", "2026-09-24", "Paket Kebersihan", 200, "paket"], ["BM018", "Koperasi Warga Sejahtera", "2026-09-25", "Beras", 600, "kg"], ["BM019", "PT Aqua Sejuk Abadi", "2026-09-29", "Air Mineral", 300, "dus"]]}, {"id": "4.4", "title": "Bantuan dari sumber yang namanya mengandung 'Peduli' atau 'PMI'", "sql": "SELECT id_bantuan, sumber, tanggal_masuk, jumlah\nFROM bantuan_masuk\nWHERE sumber LIKE '%Peduli%' OR sumber LIKE 'PMI%';", "columns": ["id_bantuan", "sumber", "tanggal_masuk", "jumlah"], "rows": [["BM002", "Yayasan Peduli Jakarta", "2026-08-01", 600], ["BM003", "PMI DKI Jakarta", "2026-08-02", 400], ["BM011", "Yayasan Peduli Jakarta", "2026-09-05", 250], ["BM013", "PMI DKI Jakarta", "2026-09-09", 400], ["BM021", "PMI DKI Jakarta", "2026-10-12", 250], ["BM024", "Yayasan Peduli Jakarta", "2026-10-17", 100]]}, {"id": "4.5", "title": "Distribusi berstatus Dikirim yang menunggu konfirmasi posko", "sql": "SELECT d.id_distribusi, p.nama AS posko_tujuan, j.nama AS logistik, d.jumlah, d.tanggal_kirim\nFROM distribusi d\nJOIN posko p ON p.id_posko = d.id_posko\nJOIN jenis_logistik j ON j.id_jenis = d.id_jenis\nWHERE d.status = 'Dikirim';", "columns": ["id_distribusi", "posko_tujuan", "logistik", "jumlah", "tanggal_kirim"], "rows": [["DST033", "Posko Jatinegara", "Air Mineral", 220, "2026-10-28"], ["DST034", "Posko Kampung Melayu", "Paket Kebersihan", 100, "2026-10-29"]]}, {"id": "4.6", "title": "Distribusi yang jumlah diterimanya berbeda dari jumlah dikirim (selisih)", "sql": "SELECT id_distribusi, id_posko, id_jenis, jumlah, jumlah_diterima,\n       (jumlah - jumlah_diterima) AS selisih, catatan\nFROM distribusi\nWHERE status = 'Diterima' AND jumlah_diterima <> jumlah;", "columns": ["id_distribusi", "id_posko", "id_jenis", "jumlah", "jumlah_diterima", "selisih", "catatan"], "rows": [["DST004", "PSK02", "JNS01", 400, 395, 5, "Kantong sobek, 5 kg tumpah"], ["DST010", "PSK03", "JNS03", 120, 118, 2, "2 dus rusak"], ["DST017", "PSK04", "JNS06", 120, 118, 2, "2 lembar sobek"], ["DST028", "PSK07", "JNS01", 450, 445, 5, "5 kg tumpah saat pengangkutan"]]}, {"id": "4.7", "title": "Kebutuhan donasi: kebutuhan posko aktif yang melebihi stok posko", "sql": "SELECT p.nama AS posko, j.nama AS logistik,\n       k.jumlah_dibutuhkan, s.jumlah AS stok,\n       (k.jumlah_dibutuhkan - s.jumlah) AS kekurangan\nFROM kebutuhan_logistik k\nJOIN stok_posko s ON s.id_posko = k.id_posko AND s.id_jenis = k.id_jenis\nJOIN posko p ON p.id_posko = k.id_posko\nJOIN jenis_logistik j ON j.id_jenis = k.id_jenis\nWHERE p.status = 'Aktif' AND k.jumlah_dibutuhkan > s.jumlah\nORDER BY kekurangan DESC;", "columns": ["posko", "logistik", "jumlah_dibutuhkan", "stok", "kekurangan"], "rows": [["Posko Jatinegara", "Air Mineral", 500, 90, 410], ["Posko Jatinegara", "Beras", 650, 300, 350], ["Posko Kampung Melayu", "Beras", 700, 380, 320], ["Posko Jatinegara", "Selimut", 400, 80, 320], ["Posko Kampung Melayu", "Selimut", 450, 160, 290], ["Posko Penjaringan", "Beras", 800, 520, 280], ["Posko Penjaringan", "Air Mineral", 400, 150, 250], ["Posko Kampung Melayu", "Air Mineral", 400, 180, 220], ["Posko Jatinegara", "Mi Instan", 300, 100, 200], ["Posko Kampung Melayu", "Paket Kebersihan", 250, 60, 190], ["Posko Penjaringan", "Selimut", 300, 120, 180], ["Posko Penjaringan", "Terpal", 200, 40, 160], ["Posko Kampung Melayu", "Mi Instan", 300, 150, 150], ["Posko Jatinegara", "Paket Kebersihan", 200, 70, 130]]}, {"id": "4.8", "title": "Stok gudang BPBD yang kurang dari 400", "sql": "SELECT j.nama AS logistik, g.jumlah AS stok_gudang, j.satuan\nFROM stok_gudang g\nJOIN jenis_logistik j ON j.id_jenis = g.id_jenis\nWHERE g.jumlah < 400\nORDER BY g.jumlah;", "columns": ["logistik", "stok_gudang", "satuan"], "rows": [["Terpal", 140, "lembar"], ["Paket Kebersihan", 250, "paket"], ["Mi Instan", 300, "dus"], ["Air Mineral", 360, "dus"]]}, {"id": "5.1", "title": "Total bantuan masuk per jenis logistik (hanya yang lebih dari 1000)", "sql": "SELECT j.nama AS logistik, SUM(m.jumlah) AS total_masuk, j.satuan\nFROM bantuan_masuk m\nJOIN jenis_logistik j ON j.id_jenis = m.id_jenis\nGROUP BY j.id_jenis, j.nama, j.satuan\nHAVING SUM(m.jumlah) > 1000\nORDER BY total_masuk DESC;", "columns": ["logistik", "total_masuk", "satuan"], "rows": [["Beras", 4200, "kg"], ["Selimut", 1900, "lembar"], ["Air Mineral", 1800, "dus"], ["Mi Instan", 1300, "dus"]]}, {"id": "5.2", "title": "Jumlah distribusi dan total jumlah dikirim per bulan", "sql": "SELECT strftime('%Y-%m', tanggal_kirim) AS bulan,\n       COUNT(*) AS jumlah_distribusi,\n       SUM(jumlah) AS total_dikirim\nFROM distribusi\nGROUP BY strftime('%Y-%m', tanggal_kirim)\nORDER BY bulan;", "columns": ["bulan", "jumlah_distribusi", "total_dikirim"], "rows": [["2026-08", 12, 2630], ["2026-09", 7, 2120], ["2026-10", 17, 3590]]}, {"id": "5.3", "title": "Posko dengan 5 distribusi atau lebih", "sql": "SELECT p.nama AS posko, COUNT(*) AS jumlah_distribusi\nFROM distribusi d\nJOIN posko p ON p.id_posko = d.id_posko\nGROUP BY p.id_posko, p.nama\nHAVING COUNT(*) >= 5\nORDER BY jumlah_distribusi DESC;", "columns": ["posko", "jumlah_distribusi"], "rows": [["Posko Penjaringan", 8], ["Posko Kampung Melayu", 6], ["Posko Pasar Minggu", 5], ["Posko Cakung", 5], ["Posko Jatinegara", 5]]}, {"id": "5.4", "title": "Donatur atau sumber dengan total bantuan 1000 atau lebih", "sql": "SELECT sumber, COUNT(*) AS kali_menyumbang, SUM(jumlah) AS total_jumlah\nFROM bantuan_masuk\nGROUP BY sumber\nHAVING SUM(jumlah) >= 1000\nORDER BY total_jumlah DESC;", "columns": ["sumber", "kali_menyumbang", "total_jumlah"], "rows": [["PT Sumber Pangan Nusantara", 3, 2800], ["Kementerian Sosial", 3, 1500], ["Koperasi Warga Sejahtera", 2, 1400], ["PMI DKI Jakarta", 3, 1050]]}, {"id": "5.5", "title": "Rekap distribusi per bencana (hanya yang berstatus Diterima, minimal 5 kali)", "sql": "SELECT b.jenis AS bencana, b.tanggal_kejadian, COUNT(*) AS jumlah_distribusi,\n       SUM(d.jumlah_diterima) AS total_diterima\nFROM distribusi d\nJOIN bencana b ON b.id_bencana = d.id_bencana\nWHERE d.status = 'Diterima'\nGROUP BY b.id_bencana, b.jenis, b.tanggal_kejadian\nHAVING COUNT(*) >= 5\nORDER BY b.tanggal_kejadian;", "columns": ["bencana", "tanggal_kejadian", "jumlah_distribusi", "total_diterima"], "rows": [["Kebakaran Permukiman", "2026-08-04", 7, 1725], ["Angin Kencang", "2026-08-23", 5, 898], ["Banjir Rob", "2026-09-12", 8, 2318], ["Kebakaran Permukiman", "2026-09-30", 5, 730], ["Banjir Luapan Kali", "2026-10-18", 7, 1995]]}, {"id": "5.6", "title": "Posko aktif dengan total kekurangan logistik lebih dari 500 unit", "sql": "SELECT p.nama AS posko, SUM(k.jumlah_dibutuhkan - s.jumlah) AS total_kekurangan\nFROM kebutuhan_logistik k\nJOIN stok_posko s ON s.id_posko = k.id_posko AND s.id_jenis = k.id_jenis\nJOIN posko p ON p.id_posko = k.id_posko\nWHERE p.status = 'Aktif' AND k.jumlah_dibutuhkan > s.jumlah\nGROUP BY p.id_posko, p.nama\nHAVING SUM(k.jumlah_dibutuhkan - s.jumlah) > 500\nORDER BY total_kekurangan DESC;", "columns": ["posko", "total_kekurangan"], "rows": [["Posko Jatinegara", 1410], ["Posko Kampung Melayu", 1170], ["Posko Penjaringan", 870]]}, {"id": "5.7", "title": "Total selisih bantuan (dikirim - diterima) per jenis logistik", "sql": "SELECT j.nama AS logistik, SUM(d.jumlah - d.jumlah_diterima) AS total_selisih\nFROM distribusi d\nJOIN jenis_logistik j ON j.id_jenis = d.id_jenis\nWHERE d.status = 'Diterima'\nGROUP BY j.id_jenis, j.nama\nHAVING SUM(d.jumlah - d.jumlah_diterima) > 0;", "columns": ["logistik", "total_selisih"], "rows": [["Beras", 10], ["Mi Instan", 2], ["Terpal", 2]]}, {"id": "5.8", "title": "Pemeriksaan konsistensi: stok gudang = bantuan masuk - distribusi (Dikirim/Diterima)", "sql": "SELECT j.nama AS logistik,\n       COALESCE(m.total_masuk,0) AS total_masuk,\n       COALESCE(d.total_keluar,0) AS total_keluar,\n       COALESCE(m.total_masuk,0) - COALESCE(d.total_keluar,0) AS stok_hitung,\n       g.jumlah AS stok_tercatat\nFROM jenis_logistik j\nJOIN stok_gudang g ON g.id_jenis = j.id_jenis\nLEFT JOIN (SELECT id_jenis, SUM(jumlah) AS total_masuk FROM bantuan_masuk GROUP BY id_jenis) m\n       ON m.id_jenis = j.id_jenis\nLEFT JOIN (SELECT id_jenis, SUM(jumlah) AS total_keluar FROM distribusi\n           WHERE status IN ('Dikirim','Diterima') GROUP BY id_jenis) d\n       ON d.id_jenis = j.id_jenis;", "columns": ["logistik", "total_masuk", "total_keluar", "stok_hitung", "stok_tercatat"], "rows": [["Beras", 4200, 3550, 650, 650], ["Air Mineral", 1800, 1440, 360, 360], ["Mi Instan", 1300, 1000, 300, 300], ["Selimut", 1900, 1200, 700, 700], ["Paket Kebersihan", 800, 550, 250, 250], ["Terpal", 400, 260, 140, 140]]}];
+
+    let currentTableName = "bencana";
+    let activeQueryIndex = 0;
+
+    // Initialize Dropdown & Table List
+    function init() {
+      const select = document.getElementById("tableSelect");
+      select.innerHTML = "";
+      for (const tName in tablesData) {
+        const opt = document.createElement("option");
+        opt.value = tName;
+        opt.textContent = tName;
+        select.appendChild(opt);
+      }
+      renderCurrentTable();
+      renderQueryNav();
+      renderActiveQuery(0);
+    }
+
+    function switchTab(tab) {
+      const secTables = document.getElementById("sectionTables");
+      const secQueries = document.getElementById("sectionQueries");
+      const secSchema = document.getElementById("sectionSchema");
+
+      const btnTables = document.getElementById("btnTabTables");
+      const btnQueries = document.getElementById("btnTabQueries");
+      const btnSchema = document.getElementById("btnTabSchema");
+
+      secTables.classList.add("hidden");
+      secQueries.classList.add("hidden");
+      secSchema.classList.add("hidden");
+
+      btnTables.className = "pb-3 px-1 text-slate-400 hover:text-slate-200 transition-colors";
+      btnQueries.className = "pb-3 px-1 text-slate-400 hover:text-slate-200 transition-colors";
+      btnSchema.className = "pb-3 px-1 text-slate-400 hover:text-slate-200 transition-colors";
+
+      if (tab === 'tables') {
+        secTables.classList.remove("hidden");
+        btnTables.className = "pb-3 px-1 tab-active transition-colors";
+      } else if (tab === 'queries') {
+        secQueries.classList.remove("hidden");
+        btnQueries.className = "pb-3 px-1 tab-active transition-colors";
+      } else {
+        secSchema.classList.remove("hidden");
+        btnSchema.className = "pb-3 px-1 tab-active transition-colors";
+      }
+    }
+
+    function renderCurrentTable() {
+      currentTableName = document.getElementById("tableSelect").value;
+      const data = tablesData[currentTableName];
+      document.getElementById("searchInput").value = "";
+
+      // Header
+      const thHtml = data.columns.map(c => `<th class="px-4 py-3 font-semibold">${c}</th>`).join("");
+      document.getElementById("tableHead").innerHTML = `<tr>${thHtml}</tr>`;
+
+      // Body
+      renderTableRows(data.rows, data.columns);
+    }
+
+    function renderTableRows(rows, cols) {
+      const tbody = document.getElementById("tableBody");
+      document.getElementById("rowCountBadge").textContent = `${rows.length} baris`;
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${cols.length}" class="px-4 py-8 text-center text-slate-500">Tidak ada data ditemukan</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = rows.map(r => {
+        const tds = r.map((cell, idx) => {
+          let val = (cell === null || cell === undefined) ? '<span class="text-slate-500 italic">NULL</span>' : cell;
+          if (cols[idx] === 'kata_sandi' && typeof val === 'string' && val.length > 20) {
+            val = `<span class="font-mono text-xs text-slate-400 truncate max-w-[120px] inline-block" title="${val}">${val.substring(0,16)}...</span>`;
+          }
+          return `<td class="px-4 py-2.5 whitespace-nowrap text-xs md:text-sm">${val}</td>`;
+        }).join("");
+        return `<tr class="hover:bg-slate-700/30 transition-colors">${tds}</tr>`;
+      }).join("");
+    }
+
+    function filterTable() {
+      const term = document.getElementById("searchInput").value.toLowerCase();
+      const data = tablesData[currentTableName];
+      const filtered = data.rows.filter(row => {
+        return row.some(cell => String(cell).toLowerCase().includes(term));
+      });
+      renderTableRows(filtered, data.columns);
+    }
+
+    function renderQueryNav() {
+      const nav = document.getElementById("queryNavList");
+      nav.innerHTML = queriesData.map((q, idx) => {
+        return `<button onclick="renderActiveQuery(${idx})" id="queryBtn-${idx}" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${idx === 0 ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}">
+          <span class="font-bold mr-1.5">${q.id}</span> ${q.title}
+        </button>`;
+      }).join("");
+    }
+
+    function renderActiveQuery(idx) {
+      activeQueryIndex = idx;
+      const q = queriesData[idx];
+
+      // Update button styles
+      queriesData.forEach((_, i) => {
+        const btn = document.getElementById(`queryBtn-${i}`);
+        if (btn) {
+          if (i === idx) {
+            btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors bg-sky-500/20 text-sky-400 border border-sky-500/30";
+          } else {
+            btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors text-slate-400 hover:bg-slate-700/50 hover:text-slate-200";
+          }
+        }
+      });
+
+      document.getElementById("activeQueryId").textContent = `Query ${q.id}`;
+      document.getElementById("activeQueryTitle").textContent = q.title;
+      document.getElementById("activeQuerySql").textContent = q.sql;
+      document.getElementById("queryRowCountBadge").textContent = `${q.rows.length} baris hasil`;
+
+      // Header
+      const thHtml = q.columns.map(c => `<th class="px-4 py-2.5 font-semibold">${c}</th>`).join("");
+      document.getElementById("queryTableHead").innerHTML = `<tr>${thHtml}</tr>`;
+
+      // Body
+      const tbody = document.getElementById("queryTableBody");
+      if (q.rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${q.columns.length}" class="px-4 py-6 text-center text-slate-500">Hasil query kosong</td></tr>`;
+      } else {
+        tbody.innerHTML = q.rows.map(r => {
+          const tds = r.map(c => `<td class="px-4 py-2 whitespace-nowrap text-xs md:text-sm">${c !== null ? c : '<span class="text-slate-500 italic">NULL</span>'}</td>`).join("");
+          return `<tr class="hover:bg-slate-700/30 transition-colors">${tds}</tr>`;
+        }).join("");
+      }
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
